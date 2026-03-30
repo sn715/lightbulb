@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 
+import brandIcon from "../assets/icon.png"
 import "./options.css"
 import { supabase } from "./lib/supabase"
 
@@ -65,7 +66,13 @@ function IndexOptions() {
         maxWidth: 480
       }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 22 }}>💡</span>
+        <img
+          src={brandIcon}
+          alt=""
+          width={32}
+          height={32}
+          style={{ objectFit: "contain", display: "block", flexShrink: 0 }}
+        />
         <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Lightbulb</h1>
       </div>
 

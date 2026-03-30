@@ -1,33 +1,37 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import type { Metadata } from "next"
+import { TikTok_Sans } from "next/font/google"
+import "./globals.css"
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+/** UI / headings — wired to `--font-sans` in globals.css. */
+const tiktokSans = TikTok_Sans({
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+  weight: ["400", "600", "700"],
+  variable: "--font-tiktok-sans",
+  display: "swap"
+})
 
 export const metadata: Metadata = {
-  title: "Lightbulb — Your Creative Inspiration Board",
-  description: "Capture and act on creative inspiration from anywhere on the web.",
-};
+  title: "Lightbulb",
+  description:
+    "Capture and act on creative inspiration from anywhere on the web."
+}
 
 export default function RootLayout({
-  children,
+  children
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
+      className={`${tiktokSans.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col bg-black text-white">{children}</body>
+      <body
+        className="min-h-full flex flex-col bg-background text-foreground font-sans"
+        suppressHydrationWarning
+      >
+        {children}
+      </body>
     </html>
-  );
+  )
 }

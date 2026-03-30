@@ -1,5 +1,13 @@
+"use client"
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Trash2 } from "lucide-react"
+
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { createClient } from "@/lib/supabase/client"
 import { CATEGORY_COLORS, type Inspiration } from "@/lib/types"
 
 function formatTimeAgo(dateStr: string) {
@@ -31,16 +39,57 @@ function getFaviconUrl(url: string) {
 }
 
 export function InspirationCard({ inspiration }: { inspiration: Inspiration }) {
+  const router = useRouter()
+  const [deleting, setDeleting] = useState(false)
+
   const domain = getDomain(inspiration.url)
   const faviconUrl = getFaviconUrl(inspiration.url)
   const colorClass =
     CATEGORY_COLORS[inspiration.category] ?? CATEGORY_COLORS["Other"]
 
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (
+      !window.confirm(
+        "Delete this inspiration? This cannot be undone."
+      )
+    ) {
+      return
+    }
+
+    setDeleting(true)
+    const supabase = createClient()
+    const { error } = await supabase
+      .from("inspirations")
+      .delete()
+      .eq("id", inspiration.id)
+
+    setDeleting(false)
+    if (error) {
+      window.alert(error.message)
+      return
+    }
+    router.refresh()
+  }
+
   return (
-    <Card className="bg-zinc-900 border-zinc-800 hover:border-zinc-700 transition-colors group">
-      <CardContent className="p-4 flex flex-col gap-3">
+    <Card className="group relative border border-border bg-card transition-colors hover:border-[var(--border-focus)]/40">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        disabled={deleting}
+        onClick={handleDelete}
+        className="absolute right-2 top-2 z-10 text-muted-foreground opacity-70 transition-opacity hover:bg-accent hover:text-red-400 hover:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+        aria-label="Delete inspiration"
+      >
+        <Trash2 className="size-4" />
+      </Button>
+
+      <CardContent className="flex flex-col gap-3 p-4 pr-12">
         {/* Annotation */}
-        <p className="text-zinc-100 text-sm leading-relaxed line-clamp-4">
+        <p className="text-sm leading-relaxed text-foreground line-clamp-4">
           {inspiration.annotation}
         </p>
 
@@ -53,8 +102,8 @@ export function InspirationCard({ inspiration }: { inspiration: Inspiration }) {
         </Badge>
 
         {/* Footer row */}
-        <div className="flex items-center justify-between pt-1 border-t border-zinc-800">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center justify-between border-t border-border pt-1">
+          <div className="flex min-w-0 items-center gap-2">
             {faviconUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -62,7 +111,7 @@ export function InspirationCard({ inspiration }: { inspiration: Inspiration }) {
                 alt=""
                 width={12}
                 height={12}
-                className="opacity-50 shrink-0"
+                className="shrink-0 opacity-50"
                 onError={(e) => (e.currentTarget.style.display = "none")}
               />
             )}
@@ -71,7 +120,7 @@ export function InspirationCard({ inspiration }: { inspiration: Inspiration }) {
                 href={inspiration.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-purple-400 text-xs hover:text-purple-300 truncate font-medium"
+                className="truncate text-xs font-medium text-primary hover:brightness-110"
               >
                 {inspiration.creator_handle}
               </a>
@@ -80,13 +129,13 @@ export function InspirationCard({ inspiration }: { inspiration: Inspiration }) {
                 href={inspiration.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-zinc-500 text-xs hover:text-zinc-400 truncate"
+                className="truncate text-xs text-muted-foreground hover:text-foreground"
               >
                 {domain}
               </a>
             )}
           </div>
-          <span className="text-zinc-600 text-xs shrink-0 ml-2">
+          <span className="ml-2 shrink-0 text-xs text-[var(--text-tertiary)]">
             {formatTimeAgo(inspiration.created_at)}
           </span>
         </div>

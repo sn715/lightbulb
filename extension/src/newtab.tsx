@@ -1,3 +1,4 @@
+import brandIcon from "../assets/icon.png"
 import "./newtab.css"
 import "./style.css"
 
@@ -22,7 +23,13 @@ function IndexNewtab() {
           gap: 12
         }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 24 }}>💡</span>
+          <img
+            src={brandIcon}
+            alt=""
+            width={36}
+            height={36}
+            style={{ objectFit: "contain", display: "block", flexShrink: 0 }}
+          />
           <h1 style={{ margin: 0, fontSize: 22 }}>Lightbulb</h1>
         </div>
         <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5 }}>

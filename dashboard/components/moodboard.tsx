@@ -9,6 +9,7 @@ import { CATEGORIES, type Category, type Inspiration } from "@/lib/types"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { BrandMark } from "@/components/brand-mark"
 
 interface MoodboardProps {
   inspirations: Inspiration[]
@@ -39,21 +40,22 @@ export function Moodboard({ inspirations, userEmail }: MoodboardProps) {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-zinc-800 bg-black/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">💡</span>
-            <span className="font-bold text-lg tracking-tight">Lightbulb</span>
-          </div>
+      <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-0">
+          <BrandMark
+            variant="header"
+            className="justify-start"
+            wordmarkClassName="font-bold text-lg tracking-tight text-foreground"
+          />
 
           <div className="flex items-center gap-3">
             <BriefModal inspirations={inspirations} />
             <Button
               variant="ghost"
               onClick={handleSignOut}
-              className="text-zinc-400 hover:text-white text-sm"
+              className="text-muted-foreground hover:bg-accent hover:text-foreground text-sm"
             >
               Sign out
             </Button>
@@ -61,9 +63,8 @@ export function Moodboard({ inspirations, userEmail }: MoodboardProps) {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-8 flex gap-8">
-        {/* Sidebar filter */}
-        <aside className="w-52 shrink-0">
+      <div className="mx-auto flex max-w-7xl gap-8 px-6 py-8">
+        <aside className="w-60 shrink-0">
           <CategoryFilter
             selected={selectedCategory}
             onChange={setSelectedCategory}
@@ -77,10 +78,10 @@ export function Moodboard({ inspirations, userEmail }: MoodboardProps) {
           <section>
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-white font-semibold text-lg">
+                <h2 className="font-semibold text-lg text-foreground">
                   {selectedCategory ?? "All Inspirations"}
                 </h2>
-                <p className="text-zinc-500 text-sm mt-0.5">
+                <p className="text-muted-foreground text-sm mt-0.5">
                   {filtered.length} saved{" "}
                   {filtered.length === 1 ? "piece" : "pieces"}
                 </p>
@@ -88,8 +89,10 @@ export function Moodboard({ inspirations, userEmail }: MoodboardProps) {
             </div>
 
             {filtered.length === 0 ? (
-              <div className="text-center py-16 text-zinc-600">
-                <p className="text-4xl mb-3">💡</p>
+              <div className="py-16 text-center text-[var(--text-tertiary)]">
+                <div className="mb-3 flex justify-center opacity-60">
+                  <BrandMark variant="empty" showWordmark={false} />
+                </div>
                 <p className="text-sm">
                   No inspirations yet. Install the extension and start saving!
                 </p>

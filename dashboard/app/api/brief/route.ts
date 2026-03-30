@@ -2,10 +2,6 @@ import Anthropic from "@anthropic-ai/sdk"
 import { createClient } from "@/lib/supabase/server"
 import type { Inspiration } from "@/lib/types"
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY
-})
-
 const SYSTEM_PROMPT = `You are a creative director and mentor. You will be given a list of inspirations a creative person has saved — each includes their personal note about what inspired them and a category. Synthesize these into a personalized creative brief with four sections:
 
 ## What You're Drawn To
@@ -15,8 +11,14 @@ const SYSTEM_PROMPT = `You are a creative director and mentor. You will be given
 
 Be specific, personal, and encouraging without being generic. Write as if you know this person's creative voice. Use the actual details from their notes — don't speak in abstractions.`
 
+function extractText(message: Anthropic.Messages.Message): string {
+  return message.content
+    .filter((block): block is Anthropic.Messages.TextBlock => block.type === "text")
+    .map((b) => b.text)
+    .join("")
+}
+
 export async function POST(request: Request) {
-  // Verify the user is authenticated
   const supabase = await createClient()
   const {
     data: { user }
@@ -24,6 +26,17 @@ export async function POST(request: Request) {
 
   if (!user) {
     return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY?.trim()
+  if (!apiKey) {
+    return Response.json(
+      {
+        error:
+          "Creative brief needs ANTHROPIC_API_KEY in the dashboard environment (e.g. .env.local)."
+      },
+      { status: 503 }
+    )
   }
 
   let inspirations: Inspiration[]
@@ -51,34 +64,30 @@ export async function POST(request: Request) {
     2
   )
 
-  const stream = anthropic.messages.stream({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 1200,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userMessage }]
-  })
+  const anthropic = new Anthropic({ apiKey })
 
-  const readable = new ReadableStream({
-    async start(controller) {
-      try {
-        for await (const chunk of stream) {
-          if (
-            chunk.type === "content_block_delta" &&
-            chunk.delta.type === "text_delta"
-          ) {
-            controller.enqueue(new TextEncoder().encode(chunk.delta.text))
-          }
-        }
-      } finally {
-        controller.close()
-      }
-    }
-  })
+  try {
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1200,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userMessage }]
+    })
 
-  return new Response(readable, {
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Transfer-Encoding": "chunked"
+    const text = extractText(message).trim()
+    if (!text) {
+      return Response.json(
+        { error: "The model returned no text. Try again or check the API model." },
+        { status: 502 }
+      )
     }
-  })
+
+    return new Response(text, {
+      headers: { "Content-Type": "text/plain; charset=utf-8" }
+    })
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error ? err.message : "Failed to generate creative brief"
+    return Response.json({ error: message }, { status: 502 })
+  }
 }

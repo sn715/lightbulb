@@ -17,14 +17,17 @@ export const CATEGORIES: Category[] = [
   "Other"
 ]
 
+/** TikTok-aligned category chips (background / text / border) */
 export const CATEGORY_COLORS: Record<Category, string> = {
-  "Visual Art": "bg-purple-500/20 text-purple-300 border-purple-500/30",
-  Music: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-  "Motion & Animation": "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
-  Lifestyle: "bg-pink-500/20 text-pink-300 border-pink-500/30",
-  Photography: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-  Writing: "bg-green-500/20 text-green-300 border-green-500/30",
-  Other: "bg-zinc-500/20 text-zinc-300 border-zinc-500/30"
+  "Visual Art":
+    "bg-[#FE2C5520] text-[#FE2C55] border-[#FE2C5540]",
+  Music: "bg-[#25F4EE20] text-[#25F4EE] border-[#25F4EE40]",
+  "Motion & Animation":
+    "bg-[#7B2FFF20] text-[#9B5FFF] border-[#9B5FFF40]",
+  Lifestyle: "bg-[#FF6B2B20] text-[#FF6B2B] border-[#FF6B2B40]",
+  Photography: "bg-[#FFD60020] text-[#FFD600] border-[#FFD60045]",
+  Writing: "bg-[#00C85220] text-[#00C852] border-[#00C85240]",
+  Other: "bg-[#FFFFFF15] text-[#A0A0A0] border-[#FFFFFF25]"
 }
 
 export type Inspiration = {

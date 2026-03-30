@@ -2,6 +2,7 @@ import cssText from "data-text:../style.css"
 import type { PlasmoCSConfig, PlasmoGetStyle } from "plasmo"
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 
+import brandIcon from "../../assets/icon.png"
 import { suggestCategory, CATEGORY_LIST, type Category } from "../lib/claude"
 import { supabase } from "../lib/supabase"
 
@@ -69,15 +70,58 @@ function detectCreatorHandle(): string {
   return ""
 }
 
-const CATEGORY_COLORS: Record<Category, string> = {
-  "Visual Art": "#a855f7",
-  Music: "#3b82f6",
-  "Motion & Animation": "#06b6d4",
-  Lifestyle: "#ec4899",
-  Photography: "#f59e0b",
-  Writing: "#22c55e",
-  Other: "#6b7280"
+/** Matches dashboard `CATEGORY_COLORS` (dim bg, label text, border). */
+const CATEGORY_THEME: Record<
+  Category,
+  { bg: string; text: string; border: string }
+> = {
+  "Visual Art": {
+    bg: "#FE2C5520",
+    text: "#FE2C55",
+    border: "#FE2C5540"
+  },
+  Music: {
+    bg: "#25F4EE20",
+    text: "#25F4EE",
+    border: "#25F4EE40"
+  },
+  "Motion & Animation": {
+    bg: "#7B2FFF20",
+    text: "#9B5FFF",
+    border: "#9B5FFF40"
+  },
+  Lifestyle: {
+    bg: "#FF6B2B20",
+    text: "#FF6B2B",
+    border: "#FF6B2B40"
+  },
+  Photography: {
+    bg: "#FFD60020",
+    text: "#FFD600",
+    border: "#FFD60045"
+  },
+  Writing: {
+    bg: "#00C85220",
+    text: "#00C852",
+    border: "#00C85240"
+  },
+  Other: {
+    bg: "#FFFFFF15",
+    text: "#A0A0A0",
+    border: "#FFFFFF25"
+  }
 }
+
+const TT = {
+  pink: "#FE2C55",
+  cyan: "#25F4EE",
+  black: "#000000",
+  elevated: "#121212",
+  surface: "#1C1C1C",
+  border: "#2A2A2A",
+  textSecondary: "#A0A0A0",
+  textTertiary: "#666666"
+} as const
 
 const DASHBOARD_URL = "http://localhost:3000/dashboard"
 
@@ -397,8 +441,8 @@ export default function Sidebar() {
           "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         display: "flex",
         flexDirection: "column",
-        background: "#0a0a0a",
-        borderLeft: "1px solid #1f1f1f",
+        background: TT.black,
+        borderLeft: `1px solid ${TT.border}`,
         boxShadow: "-8px 0 32px rgba(0,0,0,0.6)",
         overflowY: "auto",
         boxSizing: "border-box",
@@ -421,21 +465,27 @@ export default function Sidebar() {
           cursor: "ew-resize",
           zIndex: 20,
           background:
-            "linear-gradient(90deg, rgba(124,58,237,0.45), transparent)"
+            "linear-gradient(90deg, rgba(254,44,85,0.45), transparent)"
         }}
       />
       {/* Header */}
       <div
         style={{
           padding: "20px 20px 16px",
-          borderBottom: "1px solid #1f1f1f",
+          borderBottom: `1px solid ${TT.border}`,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between"
         }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 20 }}>💡</span>
-          <span
+          <img
+            src={brandIcon}
+            alt=""
+            width={48}
+            height={48}
+            style={{ objectFit: "contain", display: "block", flexShrink: 0 }}
+          />
+          {/*<span
             style={{
               color: "#ffffff",
               fontWeight: 700,
@@ -443,14 +493,14 @@ export default function Sidebar() {
               letterSpacing: "-0.3px"
             }}>
             Lightbulb
-          </span>
+          </span>*/}
         </div>
         <button
           onClick={() => setVisible(false)}
           style={{
             background: "none",
             border: "none",
-            color: "#6b7280",
+            color: TT.textTertiary,
             cursor: "pointer",
             fontSize: 18,
             lineHeight: 1,
@@ -465,7 +515,7 @@ export default function Sidebar() {
           style={{
             padding: "8px 20px 0",
             fontSize: 11,
-            color: "#6b7280"
+            color: TT.textSecondary
           }}>
           Signed in as {userEmail}
         </div>
@@ -488,9 +538,9 @@ export default function Sidebar() {
               alignSelf: "flex-start",
               padding: "6px 12px",
               borderRadius: 8,
-              border: "1px solid #6b21a8",
-              background: "#1f1035",
-              color: "#e9d5ff",
+              border: `1px solid ${TT.pink}`,
+              background: "#FE2C5518",
+              color: "#ffffff",
               fontSize: 12,
               fontWeight: 600,
               cursor: "pointer"
@@ -507,7 +557,7 @@ export default function Sidebar() {
           <label
             style={{
               display: "block",
-              color: "#9ca3af",
+              color: TT.textSecondary,
               fontSize: 12,
               fontWeight: 500,
               marginBottom: 6,
@@ -524,10 +574,10 @@ export default function Sidebar() {
             rows={4}
             style={{
               width: "100%",
-              background: "#141414",
-              border: "1px solid #2a2a2a",
+              background: TT.surface,
+              border: `1px solid ${TT.border}`,
               borderRadius: 8,
-              color: "#f3f4f6",
+              color: "#ffffff",
               fontSize: 14,
               lineHeight: 1.5,
               padding: "10px 12px",
@@ -537,10 +587,10 @@ export default function Sidebar() {
               transition: "border-color 0.15s"
             }}
             onFocus={(e) =>
-              (e.currentTarget.style.borderColor = "#6b21a8")
+              (e.currentTarget.style.borderColor = TT.pink)
             }
             onBlur={(e) =>
-              (e.currentTarget.style.borderColor = "#2a2a2a")
+              (e.currentTarget.style.borderColor = TT.border)
             }
           />
         </div>
@@ -549,7 +599,7 @@ export default function Sidebar() {
         <div>
           <label
             style={{
-              color: "#9ca3af",
+              color: TT.textSecondary,
               fontSize: 12,
               fontWeight: 500,
               marginBottom: 8,
@@ -561,12 +611,12 @@ export default function Sidebar() {
             }}>
             Category
             {isSuggesting && (
-              <span style={{ color: "#6b21a8", fontSize: 11 }}>
+              <span style={{ color: TT.cyan, fontSize: 11 }}>
                 ✦ thinking...
               </span>
             )}
             {suggestedCategory && !isSuggesting && (
-              <span style={{ color: "#a855f7", fontSize: 11 }}>
+              <span style={{ color: TT.pink, fontSize: 11 }}>
                 ✦ AI suggested
               </span>
             )}
@@ -575,21 +625,26 @@ export default function Sidebar() {
             {CATEGORY_LIST.map((cat) => {
               const isSelected = selectedCategory === cat
               const isSuggested = suggestedCategory === cat
+              const theme = CATEGORY_THEME[cat]
               return (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   style={{
-                    background: isSelected
-                      ? CATEGORY_COLORS[cat]
-                      : "#141414",
-                    border: `1px solid ${isSelected ? CATEGORY_COLORS[cat] : isSuggested ? CATEGORY_COLORS[cat] + "66" : "#2a2a2a"}`,
+                    background: isSelected ? theme.text : theme.bg,
+                    border: `1px solid ${
+                      isSelected
+                        ? theme.text
+                        : isSuggested
+                          ? theme.text
+                          : theme.border
+                    }`,
                     borderRadius: 20,
-                    color: isSelected ? "#ffffff" : "#9ca3af",
+                    color: isSelected ? "#ffffff" : theme.text,
                     cursor: "pointer",
                     fontSize: 12,
-                    fontWeight: isSelected ? 600 : 400,
-                    padding: "4px 12px",
+                    fontWeight: isSelected ? 600 : 500,
+                    padding: "6px 12px",
                     transition: "all 0.15s"
                   }}>
                   {cat}
@@ -604,7 +659,7 @@ export default function Sidebar() {
           <label
             style={{
               display: "block",
-              color: "#9ca3af",
+              color: TT.textSecondary,
               fontSize: 12,
               fontWeight: 500,
               marginBottom: 6,
@@ -620,10 +675,10 @@ export default function Sidebar() {
             placeholder="@username"
             style={{
               width: "100%",
-              background: "#141414",
-              border: "1px solid #2a2a2a",
+              background: TT.surface,
+              border: `1px solid ${TT.border}`,
               borderRadius: 8,
-              color: "#f3f4f6",
+              color: "#ffffff",
               fontSize: 14,
               padding: "8px 12px",
               outline: "none",
@@ -637,7 +692,7 @@ export default function Sidebar() {
           <label
             style={{
               display: "block",
-              color: "#9ca3af",
+              color: TT.textSecondary,
               fontSize: 12,
               fontWeight: 500,
               marginBottom: 6,
@@ -648,10 +703,10 @@ export default function Sidebar() {
           </label>
           <div
             style={{
-              background: "#141414",
-              border: "1px solid #1f1f1f",
+              background: TT.surface,
+              border: `1px solid ${TT.border}`,
               borderRadius: 8,
-              color: "#6b7280",
+              color: TT.textTertiary,
               fontSize: 12,
               padding: "8px 12px",
               overflow: "hidden",
@@ -668,7 +723,7 @@ export default function Sidebar() {
       <div
         style={{
           padding: "16px 20px",
-          borderTop: "1px solid #1f1f1f",
+          borderTop: `1px solid ${TT.border}`,
           display: "flex",
           flexDirection: "column",
           gap: 12
@@ -725,12 +780,14 @@ export default function Sidebar() {
             style={{
               background:
                 !annotation.trim() || !selectedCategory
-                  ? "#1f1f1f"
-                  : "linear-gradient(135deg, #7c3aed, #6d28d9)",
+                  ? TT.border
+                  : TT.pink,
               border: "none",
               borderRadius: 10,
               color:
-                !annotation.trim() || !selectedCategory ? "#4b5563" : "#ffffff",
+                !annotation.trim() || !selectedCategory
+                  ? TT.textTertiary
+                  : "#ffffff",
               cursor:
                 !annotation.trim() || !selectedCategory
                   ? "not-allowed"
@@ -740,6 +797,14 @@ export default function Sidebar() {
               padding: "12px 16px",
               transition: "all 0.15s",
               width: "100%"
+            }}
+            onMouseEnter={(e) => {
+              if (!annotation.trim() || !selectedCategory || saveState === "saving")
+                return
+              e.currentTarget.style.filter = "brightness(0.92)"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.filter = "none"
             }}>
             {saveState === "saving" ? "Saving..." : "Save Inspiration"}
           </button>
@@ -750,16 +815,16 @@ export default function Sidebar() {
           target="_blank"
           rel="noopener noreferrer"
           style={{
-            color: "#6b7280",
+            color: TT.textSecondary,
             fontSize: 12,
             textAlign: "center",
             textDecoration: "none"
           }}
           onMouseOver={(e) =>
-            (e.currentTarget.style.color = "#a855f7")
+            (e.currentTarget.style.color = TT.pink)
           }
           onMouseOut={(e) =>
-            (e.currentTarget.style.color = "#6b7280")
+            (e.currentTarget.style.color = TT.textSecondary)
           }>
           Open Dashboard →
         </a>

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { BrandMark } from "@/components/brand-mark"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -55,30 +56,30 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <span className="text-3xl">💡</span>
-            <span className="text-white font-bold text-2xl tracking-tight">
-              Lightbulb
-            </span>
+          <div className="mb-2">
+            <BrandMark
+              variant="hero"
+              wordmarkClassName="font-bold text-2xl tracking-tight text-foreground"
+            />
           </div>
-          <p className="text-zinc-500 text-sm">
+          <p className="text-sm text-muted-foreground">
             Your creative inspiration board
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-          <h1 className="text-white font-semibold text-lg mb-6">
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h1 className="mb-6 font-semibold text-lg text-foreground">
             {isSignUp ? "Create account" : "Sign in"}
           </h1>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-zinc-400 text-xs uppercase tracking-wider">
+              <Label htmlFor="email" className="text-xs uppercase tracking-wider text-muted-foreground">
                 Email
               </Label>
               <Input
@@ -88,12 +89,12 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 required
-                className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600 focus:border-purple-500 focus:ring-purple-500/20"
+                className="border-border bg-bg-surface text-foreground placeholder:text-[var(--text-tertiary)]"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-zinc-400 text-xs uppercase tracking-wider">
+              <Label htmlFor="password" className="text-xs uppercase tracking-wider text-muted-foreground">
                 Password
               </Label>
               <Input
@@ -103,7 +104,7 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600 focus:border-purple-500 focus:ring-purple-500/20"
+                className="border-border bg-bg-surface text-foreground placeholder:text-[var(--text-tertiary)]"
               />
             </div>
 
@@ -117,17 +118,17 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium"
+              className="w-full bg-primary font-medium text-primary-foreground hover:brightness-95"
             >
               {loading ? "..." : isSignUp ? "Create account" : "Sign in"}
             </Button>
           </form>
 
-          <p className="text-center text-zinc-500 text-sm mt-4">
+          <p className="mt-4 text-center text-sm text-muted-foreground">
             {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
             <button
               onClick={() => { setIsSignUp(!isSignUp); setError(""); setNotice("") }}
-              className="text-purple-400 hover:text-purple-300 underline underline-offset-2"
+              className="text-primary underline underline-offset-2 hover:brightness-110"
             >
               {isSignUp ? "Sign in" : "Sign up"}
             </button>
