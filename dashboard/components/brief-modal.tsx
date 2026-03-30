@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -9,64 +9,40 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { brandIcon } from "@/lib/brand-icon"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import type { Inspiration } from "@/lib/types"
 
 interface BriefModalProps {
   inspirations: Inspiration[]
 }
 
-// Parse the streamed text into sections for display
-function renderBrief(text: string) {
-  if (!text) return null
+type BriefPayload = { summary: string; ideas: string[] }
 
-  // Split on markdown-style headers (## or bold **Section**)
-  const lines = text.split("\n")
-
-  return lines.map((line, i) => {
-    if (line.startsWith("## ") || line.startsWith("### ")) {
-      return (
-        <h3 key={i} className="font-semibold text-base text-foreground mt-6 mb-2 first:mt-0">
-          {line.replace(/^#+\s/, "")}
-        </h3>
-      )
-    }
-    if (line.startsWith("**") && line.endsWith("**")) {
-      return (
-        <h3 key={i} className="font-semibold text-base text-foreground mt-6 mb-2 first:mt-0">
-          {line.replace(/\*\*/g, "")}
-        </h3>
-      )
-    }
-    if (line.startsWith("- ") || line.startsWith("• ")) {
-      return (
-        <li key={i} className="text-muted-foreground text-sm leading-relaxed ml-4 list-disc">
-          {line.replace(/^[-•]\s/, "")}
-        </li>
-      )
-    }
-    if (line.trim() === "") {
-      return <div key={i} className="h-1" />
-    }
-    return (
-      <p key={i} className="text-muted-foreground text-sm leading-relaxed">
-        {line}
-      </p>
-    )
-  })
+function inspirationKey(inspirations: Inspiration[]) {
+  return [...inspirations]
+    .map((i) => i.id)
+    .sort()
+    .join("|")
 }
 
 export function BriefModal({ inspirations }: BriefModalProps) {
+  const key = useMemo(() => inspirationKey(inspirations), [inspirations])
+
   const [open, setOpen] = useState(false)
-  const [brief, setBrief] = useState("")
+  const [payload, setPayload] = useState<BriefPayload | null>(null)
+  const [lastSyncedKey, setLastSyncedKey] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
-  const generateBrief = async () => {
-    setBrief("")
+  const inFlightRef = useRef(false)
+  /** After a failed fetch for `key`, avoid effect retry loops until Regenerate or key change. */
+  const failedKeyRef = useRef<string | null>(null)
+
+  const fetchBrief = useCallback(async () => {
+    if (inFlightRef.current) return
+    inFlightRef.current = true
+    failedKeyRef.current = null
     setError("")
     setLoading(true)
-
     try {
       const response = await fetch("/api/brief", {
         method: "POST",
@@ -74,32 +50,59 @@ export function BriefModal({ inspirations }: BriefModalProps) {
         body: JSON.stringify({ inspirations })
       })
 
-      const contentType = response.headers.get("content-type") ?? ""
+      const data = await response.json().catch(() => ({}))
 
       if (!response.ok) {
-        const err = await response.json().catch(() => ({}))
-        throw new Error(err.error ?? `Server error ${response.status}`)
-      }
-
-      if (contentType.includes("application/json")) {
-        const data = await response.json().catch(() => ({}))
         throw new Error(
-          typeof data.error === "string" ? data.error : "Unexpected JSON response"
+          typeof data.error === "string" ? data.error : `Server error ${response.status}`
         )
       }
 
-      const text = await response.text()
-      setBrief(text.trim())
+      if (
+        typeof data.summary !== "string" ||
+        !Array.isArray(data.ideas) ||
+        data.ideas.length !== 5
+      ) {
+        throw new Error("Unexpected response from brief API")
+      }
+
+      setPayload({
+        summary: data.summary,
+        ideas: data.ideas as string[]
+      })
+      setLastSyncedKey(key)
+      failedKeyRef.current = null
     } catch (err: unknown) {
+      failedKeyRef.current = key
       setError(err instanceof Error ? err.message : "Failed to generate brief")
     } finally {
       setLoading(false)
+      inFlightRef.current = false
     }
-  }
+  }, [inspirations, key])
 
-  const handleOpen = () => {
-    setOpen(true)
-    if (!brief && !loading) generateBrief()
+  useEffect(() => {
+    if (!open) return
+    if (failedKeyRef.current === key) return
+    if (lastSyncedKey === key && payload !== null) return
+    void fetchBrief()
+  }, [open, key, lastSyncedKey, payload, fetchBrief])
+
+  const handleOpen = () => setOpen(true)
+
+  const canRegenerate = Boolean(
+    error || (lastSyncedKey !== null && lastSyncedKey !== key)
+  )
+
+  const handleRegenerate = () => {
+    failedKeyRef.current = null
+    if (error) {
+      void fetchBrief()
+      return
+    }
+    if (lastSyncedKey !== key) {
+      void fetchBrief()
+    }
   }
 
   return (
@@ -112,7 +115,7 @@ export function BriefModal({ inspirations }: BriefModalProps) {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="flex max-h-[80vh] min-h-[min(50vh,24rem)] w-full max-w-2xl flex-col border-border bg-card p-0 sm:max-w-2xl">
+        <DialogContent className="flex max-h-[92vh] min-h-[min(78vh,44rem)] w-[calc(100%-1.5rem)] max-w-none flex-col border-border bg-card p-0 sm:!max-w-7xl">
           <DialogHeader className="shrink-0 border-b border-border px-6 pt-6 pb-4">
             <DialogTitle className="flex items-center gap-2 text-xl font-semibold text-foreground">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -122,7 +125,7 @@ export function BriefModal({ inspirations }: BriefModalProps) {
                 width={brandIcon.width}
                 height={brandIcon.height}
                 className="max-w-none shrink-0 object-contain"
-                style={{ width: 100, height: 100 }}
+                style={{ width: 60, height: 60 }}
               />
               Your Creative Brief
             </DialogTitle>
@@ -132,8 +135,8 @@ export function BriefModal({ inspirations }: BriefModalProps) {
             </p>
           </DialogHeader>
 
-          <ScrollArea className="min-h-0 flex-1 basis-0 px-6 py-4">
-            {loading && !brief && (
+          <div className="min-h-0 flex-1 basis-0 overflow-y-auto px-6 py-5">
+            {loading && !payload && (
               <div className="flex items-center gap-3 py-8 text-muted-foreground">
                 <div className="flex gap-1">
                   <span
@@ -153,26 +156,49 @@ export function BriefModal({ inspirations }: BriefModalProps) {
               </div>
             )}
 
-            {error && (
-              <p className="text-red-400 text-sm py-4">{error}</p>
+            {loading && payload && (
+              <p className="mb-4 text-sm text-muted-foreground">
+                Updating for your latest saves…
+              </p>
             )}
 
-            {brief && (
-              <div className="space-y-1 pb-4">
-                {renderBrief(brief)}
-                {loading && (
-                  <span className="ml-1 inline-block h-4 w-1 animate-pulse bg-primary" />
-                )}
+            {error && (
+              <p className="py-4 text-sm text-red-400">{error}</p>
+            )}
+
+            {payload && (
+              <div className="space-y-5 pb-2">
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {payload.summary}
+                </p>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:gap-4">
+                  {payload.ideas.map((idea, i) => (
+                    <div
+                      key={i}
+                      className="flex min-h-[5.5rem] items-start rounded-xl border border-[#FE2C5540] bg-[#FE2C5520] p-4 text-left text-sm font-medium leading-snug text-[#FE2C55] ring-1 ring-[#FE2C55]/10"
+                    >
+                      {idea}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
-          </ScrollArea>
+          </div>
 
-          {!loading && (brief || error) && (
+          {!loading && (payload || error) && (
             <div className="shrink-0 border-t border-border px-6 py-4">
               <Button
-                onClick={generateBrief}
+                type="button"
                 variant="outline"
-                className="border-border text-sm text-foreground hover:bg-accent hover:text-foreground"
+                disabled={!canRegenerate}
+                title={
+                  !canRegenerate && !error
+                    ? "Your saves haven’t changed — brief is up to date."
+                    : undefined
+                }
+                onClick={handleRegenerate}
+                className="border-border text-sm text-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
               >
                 Regenerate
               </Button>

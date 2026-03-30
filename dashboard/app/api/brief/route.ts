@@ -2,20 +2,56 @@ import Anthropic from "@anthropic-ai/sdk"
 import { createClient } from "@/lib/supabase/server"
 import type { Inspiration } from "@/lib/types"
 
-const SYSTEM_PROMPT = `You are a creative director and mentor. You will be given a list of inspirations a creative person has saved — each includes their personal note about what inspired them and a category. Synthesize these into a personalized creative brief with four sections:
+const SYSTEM_PROMPT = `You are a creative director. The user will send JSON: an array of saved inspirations (category, annotation, creator, source).
 
-## What You're Drawn To
-## Your Aesthetic Tendencies
-## Three Concrete Starting Points
-## Creators Worth Exploring Further
+Respond with ONLY a single JSON object (no markdown fences, no other text) matching this exact shape:
+{
+  "summary": "<one paragraph only: synthesize what they're drawn to across their notes — specific, personal, grounded in what they wrote>",
+  "ideas": [ "<string>", "<string>", "<string>", "<string>", "<string>" ]
+}
 
-Be specific, personal, and encouraging without being generic. Write as if you know this person's creative voice. Use the actual details from their notes — don't speak in abstractions.`
+Rules:
+- "summary": exactly one paragraph (no line breaks, no bullet list inside it).
+- "ideas": exactly 5 strings. Each must be a concrete, action-oriented next step (start with verbs like Try, Record, Paint, Create, Draft, Build, Study, Remix, etc.).
+- Each idea must clearly tie to something in their annotations (paraphrase or allude — don't invent unrelated topics).
+- If there are fewer than 5 saved items, still output 5 distinct ideas inspired by the combined set of notes.
+- Output valid JSON only.`
 
 function extractText(message: Anthropic.Messages.Message): string {
   return message.content
     .filter((block): block is Anthropic.Messages.TextBlock => block.type === "text")
     .map((b) => b.text)
     .join("")
+}
+
+function parseBriefJson(raw: string): { summary: string; ideas: string[] } {
+  let t = raw.trim()
+  if (t.startsWith("```")) {
+    t = t.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "")
+  }
+  const parsed = JSON.parse(t) as unknown
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("Invalid JSON shape")
+  }
+  const obj = parsed as Record<string, unknown>
+  const summary =
+    typeof obj.summary === "string" ? obj.summary.trim() : ""
+  const ideasRaw = obj.ideas
+  if (!Array.isArray(ideasRaw)) {
+    throw new Error("Missing ideas array")
+  }
+  const ideas = ideasRaw
+    .filter((x): x is string => typeof x === "string")
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+  if (!summary) {
+    throw new Error("Empty summary")
+  }
+  if (ideas.length < 5) {
+    throw new Error(`Expected 5 ideas, got ${ideas.length}`)
+  }
+  return { summary, ideas: ideas.slice(0, 5) }
 }
 
 export async function POST(request: Request) {
@@ -69,7 +105,7 @@ export async function POST(request: Request) {
   try {
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 1200,
+      max_tokens: 1600,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userMessage }]
     })
@@ -82,8 +118,21 @@ export async function POST(request: Request) {
       )
     }
 
-    return new Response(text, {
-      headers: { "Content-Type": "text/plain; charset=utf-8" }
+    let brief: { summary: string; ideas: string[] }
+    try {
+      brief = parseBriefJson(text)
+    } catch {
+      return Response.json(
+        {
+          error:
+            "Could not parse brief JSON from the model. Try Regenerate, or try again in a moment."
+        },
+        { status: 502 }
+      )
+    }
+
+    return Response.json(brief, {
+      headers: { "Content-Type": "application/json; charset=utf-8" }
     })
   } catch (err: unknown) {
     const message =
