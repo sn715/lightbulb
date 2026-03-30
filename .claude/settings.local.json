@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(npm init:*)",
+      "Bash(npm --version)",
+      "Bash(npx create-next-app@latest dashboard --typescript --tailwind --app --no-eslint --no-src-dir --import-alias \"@/*\" --yes)",
+      "Bash(npx shadcn@latest init --yes --defaultsclaude --dangerously-skip-permissions)",
+      "Bash(npm install:*)",
+      "Bash(npx shadcn@latest add card badge dialog scroll-area textarea input label --yes)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}
