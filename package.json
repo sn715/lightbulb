@@ -1,0 +1,17 @@
+{
+  "name": "lightbulb",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "dashboard"
+  ],
+  "scripts": {
+    "dev:dashboard": "npm run dev --workspace=dashboard",
+    "dev:extension": "cd extension && npm run dev",
+    "build:dashboard": "npm run build --workspace=dashboard",
+    "build:extension": "cd extension && npm run build"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
