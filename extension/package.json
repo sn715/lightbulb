@@ -23,6 +23,9 @@
     "typescript": "5.3.3"
   },
   "manifest": {
+    "action": {
+      "default_title": "Toggle Lightbulb capture panel"
+    },
     "host_permissions": [
       "https://*/*",
       "http://*/*"

@@ -1,5 +1,8 @@
+-- Lightbulb Supabase schema — paste EVERYTHING in this file into the
+-- Supabase Dashboard → SQL Editor, then click Run.
+-- Do not type the path "supabase/schema.sql" in the editor; that is not SQL.
+
 -- Lightbulb Supabase Schema
--- Run this in the Supabase SQL editor
 
 -- ============================================================
 -- PROFILES
@@ -38,6 +41,11 @@ create policy "Users can view their own profile"
 create policy "Users can update their own profile"
   on public.profiles for update
   using (auth.uid() = id);
+
+drop policy if exists "Users can insert their own profile" on public.profiles;
+create policy "Users can insert their own profile"
+  on public.profiles for insert
+  with check (auth.uid() = id);
 
 
 -- ============================================================
@@ -78,3 +86,6 @@ create policy "Users can update their own inspirations"
 create policy "Users can delete their own inspirations"
   on public.inspirations for delete
   using (auth.uid() = user_id);
+
+-- If you already ran an older schema and hit inspirations_user_id_fkey errors,
+-- run supabase/profile-fix-existing-users.sql once in the SQL Editor.

@@ -1,4 +1,4 @@
-.new-tab {
+.new-tab-card {
   background-color: #f0f0f0;
   border: 1px solid #ccc;
   border-radius: 4px;
@@ -8,6 +8,7 @@
   font-size: 12px;
   line-height: 16px;
   margin: 0 0 10px;
+  max-width: 560px;
   padding: 10px;
   position: relative;
   text-decoration: none;

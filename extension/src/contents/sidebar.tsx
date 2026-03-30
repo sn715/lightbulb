@@ -56,9 +56,17 @@ const CATEGORY_COLORS: Record<Category, string> = {
 
 const DASHBOARD_URL = "http://localhost:3000/dashboard"
 
+const SIDEBAR_WIDTH_KEY = "lightbulb_sidebar_width"
+const SIDEBAR_MIN_W = 280
+const SIDEBAR_MAX_W = 720
+const SIDEBAR_DEFAULT_W = 360
+
 // ── component ────────────────────────────────────────────────────────────────
 
 export default function Sidebar() {
+  const [panelWidth, setPanelWidth] = useState(SIDEBAR_DEFAULT_W)
+  const [resizing, setResizing] = useState(false)
+  const panelWidthRef = useRef(panelWidth)
   const [visible, setVisible] = useState(false)
   const [annotation, setAnnotation] = useState("")
   const [creator, setCreator] = useState("")
@@ -72,8 +80,74 @@ export default function Sidebar() {
   )
   const [isSuggesting, setIsSuggesting] = useState(false)
   const [saveState, setSaveState] = useState<"idle" | "saving" | "success" | "error">("idle")
+  const [saveErrorDetail, setSaveErrorDetail] = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
 
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  panelWidthRef.current = panelWidth
+
+  useEffect(() => {
+    void chrome.storage.local.get([SIDEBAR_WIDTH_KEY]).then((r) => {
+      const w = r[SIDEBAR_WIDTH_KEY]
+      if (typeof w === "number" && w >= SIDEBAR_MIN_W && w <= SIDEBAR_MAX_W) {
+        setPanelWidth(w)
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!resizing) return
+    const clamp = (v: number) => {
+      const max = Math.min(SIDEBAR_MAX_W, window.innerWidth - 80)
+      return Math.round(Math.min(max, Math.max(SIDEBAR_MIN_W, v)))
+    }
+    const onMove = (e: MouseEvent) => {
+      setPanelWidth(clamp(window.innerWidth - e.clientX))
+    }
+    const onUp = () => {
+      setResizing(false)
+      void chrome.storage.local.set({
+        [SIDEBAR_WIDTH_KEY]: panelWidthRef.current
+      })
+    }
+    window.addEventListener("mousemove", onMove)
+    window.addEventListener("mouseup", onUp)
+    document.body.style.cursor = "ew-resize"
+    document.body.style.userSelect = "none"
+    return () => {
+      window.removeEventListener("mousemove", onMove)
+      window.removeEventListener("mouseup", onUp)
+      document.body.style.cursor = ""
+      document.body.style.userSelect = ""
+    }
+  }, [resizing])
+
+  const syncAuthSession = () => {
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserEmail(session?.user.email ?? null)
+    })
+  }
+
+  useEffect(() => {
+    syncAuthSession()
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      syncAuthSession()
+    })
+    const onStorage: Parameters<
+      typeof chrome.storage.onChanged.addListener
+    >[0] = (changes, area) => {
+      if (area !== "local") return
+      if (Object.keys(changes).some((k) => k.startsWith("sb-"))) {
+        syncAuthSession()
+      }
+    }
+    chrome.storage.onChanged.addListener(onStorage)
+    return () => {
+      sub.subscription.unsubscribe()
+      chrome.storage.onChanged.removeListener(onStorage)
+    }
+  }, [])
 
   // Listen for toggle message from background script
   useEffect(() => {
@@ -85,6 +159,10 @@ export default function Sidebar() {
     chrome.runtime.onMessage.addListener(handler)
     return () => chrome.runtime.onMessage.removeListener(handler)
   }, [])
+
+  useEffect(() => {
+    if (visible) syncAuthSession()
+  }, [visible])
 
   // Auto-detect creator on mount
   useEffect(() => {
@@ -117,13 +195,42 @@ export default function Sidebar() {
     }
   }, [annotation])
 
+  const openExtensionSignIn = () => {
+    void chrome.runtime.openOptionsPage()
+  }
+
   const handleSave = async () => {
     if (!annotation.trim() || !selectedCategory) return
     setSaveState("saving")
+    setSaveErrorDetail(null)
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       setSaveState("error")
+      setSaveErrorDetail(
+        "Sign in under Extension options (same account as the dashboard)."
+      )
+      setTimeout(() => {
+        setSaveState("idle")
+        setSaveErrorDetail(null)
+      }, 5000)
+      return
+    }
+
+    const { error: profileErr } = await supabase.from("profiles").upsert(
+      { id: user.id, email: user.email ?? "" },
+      { onConflict: "id" }
+    )
+    if (profileErr) {
+      setSaveState("error")
+      setSaveErrorDetail(
+        profileErr.message ||
+          "Could not create your profile row. Run the latest supabase/schema.sql in the SQL Editor (includes profile insert policy + backfill)."
+      )
+      setTimeout(() => {
+        setSaveState("idle")
+        setSaveErrorDetail(null)
+      }, 5000)
       return
     }
 
@@ -140,7 +247,11 @@ export default function Sidebar() {
 
     if (error) {
       setSaveState("error")
-      setTimeout(() => setSaveState("idle"), 3000)
+      setSaveErrorDetail(error.message || "Could not save")
+      setTimeout(() => {
+        setSaveState("idle")
+        setSaveErrorDetail(null)
+      }, 5000)
     } else {
       setSaveState("success")
       setTimeout(() => {
@@ -160,7 +271,7 @@ export default function Sidebar() {
         position: "fixed",
         top: 0,
         right: 0,
-        width: "360px",
+        width: panelWidth,
         height: "100vh",
         zIndex: 2147483647,
         fontFamily:
@@ -170,8 +281,29 @@ export default function Sidebar() {
         background: "#0a0a0a",
         borderLeft: "1px solid #1f1f1f",
         boxShadow: "-8px 0 32px rgba(0,0,0,0.6)",
-        overflowY: "auto"
+        overflowY: "auto",
+        boxSizing: "border-box"
       }}>
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Drag to resize sidebar"
+        onMouseDown={(e) => {
+          e.preventDefault()
+          setResizing(true)
+        }}
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 6,
+          cursor: "ew-resize",
+          zIndex: 20,
+          background:
+            "linear-gradient(90deg, rgba(124,58,237,0.45), transparent)"
+        }}
+      />
       {/* Header */}
       <div
         style={{
@@ -208,6 +340,45 @@ export default function Sidebar() {
           ✕
         </button>
       </div>
+      {userEmail ? (
+        <div
+          style={{
+            padding: "8px 20px 0",
+            fontSize: 11,
+            color: "#6b7280"
+          }}>
+          Signed in as {userEmail}
+        </div>
+      ) : (
+        <div
+          style={{
+            padding: "10px 20px 0",
+            display: "flex",
+            flexDirection: "column",
+            gap: 8
+          }}>
+          <span style={{ fontSize: 12, color: "#fbbf24" }}>
+            Not signed in — saves will fail until you sign in via extension
+            options.
+          </span>
+          <button
+            type="button"
+            onClick={openExtensionSignIn}
+            style={{
+              alignSelf: "flex-start",
+              padding: "6px 12px",
+              borderRadius: 8,
+              border: "1px solid #6b21a8",
+              background: "#1f1035",
+              color: "#e9d5ff",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer"
+            }}>
+            Open sign-in (extension options)
+          </button>
+        </div>
+      )}
 
       {/* Body */}
       <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 16, flex: 1 }}>
@@ -402,11 +573,29 @@ export default function Sidebar() {
               border: "1px solid #7f1d1d",
               borderRadius: 10,
               color: "#fca5a5",
-              fontSize: 14,
+              fontSize: 13,
               padding: "12px 16px",
-              textAlign: "center"
+              textAlign: "center",
+              display: "flex",
+              flexDirection: "column",
+              gap: 10
             }}>
-            Failed to save. Are you signed in?
+            <span>{saveErrorDetail ?? "Could not save."}</span>
+            <button
+              type="button"
+              onClick={openExtensionSignIn}
+              style={{
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: "1px solid #fca5a5",
+                background: "transparent",
+                color: "#fecaca",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer"
+              }}>
+              Extension sign-in…
+            </button>
           </div>
         ) : (
           <button

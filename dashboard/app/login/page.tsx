@@ -13,29 +13,38 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [isSignUp, setIsSignUp] = useState(false)
   const [error, setError] = useState("")
+  const [notice, setNotice] = useState("")
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setNotice("")
     setLoading(true)
 
     const supabase = createClient()
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ email, password })
+        const { data, error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
-        setError("Check your email to confirm your account.")
+        if (data.session) {
+          router.push("/dashboard")
+          router.refresh()
+          return
+        }
+        setNotice(
+          "Turn off “Confirm email” in Supabase (Authentication → Providers → Email), then sign up again or sign in."
+        )
         setLoading(false)
         return
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        })
-        if (error) throw error
       }
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+      if (error) throw error
 
       router.push("/dashboard")
       router.refresh()
@@ -98,10 +107,11 @@ export default function LoginPage() {
               />
             </div>
 
+            {notice && (
+              <p className="text-sm text-amber-400/90">{notice}</p>
+            )}
             {error && (
-              <p className={`text-sm ${error.includes("Check your email") ? "text-green-400" : "text-red-400"}`}>
-                {error}
-              </p>
+              <p className="text-sm text-red-400">{error}</p>
             )}
 
             <Button
@@ -116,7 +126,7 @@ export default function LoginPage() {
           <p className="text-center text-zinc-500 text-sm mt-4">
             {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
             <button
-              onClick={() => { setIsSignUp(!isSignUp); setError("") }}
+              onClick={() => { setIsSignUp(!isSignUp); setError(""); setNotice("") }}
               className="text-purple-400 hover:text-purple-300 underline underline-offset-2"
             >
               {isSignUp ? "Sign in" : "Sign up"}

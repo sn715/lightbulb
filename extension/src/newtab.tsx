@@ -1,23 +1,35 @@
-import { useState } from "react"
-
+import "./newtab.css"
 import "./style.css"
 
 function IndexNewtab() {
-  const [data, setData] = useState("")
-
   return (
     <div
-      className="new-tab"
       style={{
-        padding: 16,
+        padding: 24,
         display: "flex",
-        flexDirection: "column"
+        flexDirection: "column",
+        alignItems: "flex-start",
+        gap: 16,
+        minHeight: "100vh",
+        boxSizing: "border-box"
       }}>
-      <h1>
-        Welcome to your <a href="https://www.plasmo.com">Plasmo</a> Extension!
-      </h1>
-      <input onChange={(e) => setData(e.target.value)} value={data} />
-      <footer>Crafted by @PlasmoHQ</footer>
+      <div
+        className="new-tab-card"
+        style={{
+          padding: 20,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12
+        }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 24 }}>💡</span>
+          <h1 style={{ margin: 0, fontSize: 22 }}>Lightbulb</h1>
+        </div>
+        <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5 }}>
+          New tab page — browse anywhere, then use the extension toolbar icon to
+          capture inspiration in the sidebar.
+        </p>
+      </div>
     </div>
   )
 }
