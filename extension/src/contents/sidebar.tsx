@@ -1,6 +1,6 @@
 import cssText from "data-text:../style.css"
 import type { PlasmoCSConfig, PlasmoGetStyle } from "plasmo"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 
 import { suggestCategory, CATEGORY_LIST, type Category } from "../lib/claude"
 import { supabase } from "../lib/supabase"
@@ -21,8 +21,33 @@ function detectCreatorHandle(): string {
   const { hostname, pathname } = window.location
 
   if (hostname.includes("tiktok.com")) {
-    const match = pathname.match(/^\/@([^/]+)/)
-    if (match) return `@${match[1]}`
+    const at = pathname.match(/^\/@([^/]+)/)
+    if (at) return `@${at[1]}`
+    // e.g. /toriheiserman5/video/7123456789012345678
+    const vid = pathname.match(/^\/([^/@]+)\/video\/\d+/i)
+    if (vid) {
+      const seg = vid[1]
+      const reserved = new Set([
+        "explore",
+        "following",
+        "foryou",
+        "live",
+        "discover",
+        "search",
+        "upload",
+        "tiktokstudio",
+        "messages",
+        "setting"
+      ])
+      if (!reserved.has(seg.toLowerCase())) {
+        return seg.startsWith("@") ? seg : `@${seg}`
+      }
+    }
+    const unique = document.querySelector(
+      "[data-e2e='video-author-uniqueid'], [data-e2e='browse-username']"
+    )
+    const fromDom = unique?.textContent?.trim()
+    if (fromDom) return fromDom.startsWith("@") ? fromDom : `@${fromDom}`
   }
 
   if (hostname.includes("instagram.com")) {
@@ -61,6 +86,17 @@ const SIDEBAR_MIN_W = 280
 const SIDEBAR_MAX_W = 720
 const SIDEBAR_DEFAULT_W = 360
 
+/** Used with composedPath() so we detect events inside the panel (incl. open shadow roots). */
+const PANEL_ATTR = "data-lightbulb-panel"
+
+function isLightbulbInComposedPath(e: Event): boolean {
+  const path = e.composedPath?.() ?? []
+  for (const n of path) {
+    if (n instanceof Element && n.hasAttribute(PANEL_ATTR)) return true
+  }
+  return false
+}
+
 // ── component ────────────────────────────────────────────────────────────────
 
 export default function Sidebar() {
@@ -70,8 +106,8 @@ export default function Sidebar() {
   const [visible, setVisible] = useState(false)
   const [annotation, setAnnotation] = useState("")
   const [creator, setCreator] = useState("")
-  const [url] = useState(window.location.href)
-  const [pageTitle] = useState(document.title)
+  const [url, setUrl] = useState(() => window.location.href)
+  const [pageTitle, setPageTitle] = useState(() => document.title)
   const [suggestedCategory, setSuggestedCategory] = useState<Category | null>(
     null
   )
@@ -84,8 +120,65 @@ export default function Sidebar() {
   const [userEmail, setUserEmail] = useState<string | null>(null)
 
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const panelRootRef = useRef<HTMLDivElement | null>(null)
+  const annotationRef = useRef<HTMLTextAreaElement | null>(null)
+  const visibleRef = useRef(false)
 
   panelWidthRef.current = panelWidth
+  visibleRef.current = visible
+
+  useEffect(() => {
+    const blockPageInput = (e: Event) => {
+      if (!visibleRef.current) return
+      if (isLightbulbInComposedPath(e)) return
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    const keyOpts: AddEventListenerOptions = { capture: true }
+    const wheelOpts: AddEventListenerOptions = { capture: true, passive: false }
+    window.addEventListener("keydown", blockPageInput, keyOpts)
+    window.addEventListener("keyup", blockPageInput, keyOpts)
+    window.addEventListener("keypress", blockPageInput, keyOpts)
+    window.addEventListener("wheel", blockPageInput, wheelOpts)
+    return () => {
+      window.removeEventListener("keydown", blockPageInput, keyOpts)
+      window.removeEventListener("keyup", blockPageInput, keyOpts)
+      window.removeEventListener("keypress", blockPageInput, keyOpts)
+      window.removeEventListener("wheel", blockPageInput, wheelOpts)
+    }
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!visible) return
+    const rootEl = panelRootRef.current
+    if (!rootEl) return
+
+    const focusId = window.requestAnimationFrame(() => {
+      annotationRef.current?.focus({ preventScroll: true })
+    })
+
+    const stopBubbleToPage = (e: Event) => {
+      e.stopPropagation()
+    }
+
+    const rootNode = rootEl.getRootNode()
+    const attachTarget: EventTarget =
+      rootNode instanceof ShadowRoot ? rootNode : rootEl
+
+    const wheelLocal: AddEventListenerOptions = { passive: false }
+    attachTarget.addEventListener("keydown", stopBubbleToPage)
+    attachTarget.addEventListener("keyup", stopBubbleToPage)
+    attachTarget.addEventListener("keypress", stopBubbleToPage)
+    attachTarget.addEventListener("wheel", stopBubbleToPage, wheelLocal)
+
+    return () => {
+      window.cancelAnimationFrame(focusId)
+      attachTarget.removeEventListener("keydown", stopBubbleToPage)
+      attachTarget.removeEventListener("keyup", stopBubbleToPage)
+      attachTarget.removeEventListener("keypress", stopBubbleToPage)
+      attachTarget.removeEventListener("wheel", stopBubbleToPage, wheelLocal)
+    }
+  }, [visible])
 
   useEffect(() => {
     void chrome.storage.local.get([SIDEBAR_WIDTH_KEY]).then((r) => {
@@ -164,10 +257,25 @@ export default function Sidebar() {
     if (visible) syncAuthSession()
   }, [visible])
 
-  // Auto-detect creator on mount
-  useEffect(() => {
+  const syncPageMetadata = useCallback(() => {
+    setUrl(window.location.href)
+    setPageTitle(document.title)
     setCreator(detectCreatorHandle())
   }, [])
+
+  useLayoutEffect(() => {
+    if (!visible) return
+    syncPageMetadata()
+  }, [visible, syncPageMetadata])
+
+  useEffect(() => {
+    if (!visible) return
+    const onPopState = () => {
+      syncPageMetadata()
+    }
+    window.addEventListener("popstate", onPopState)
+    return () => window.removeEventListener("popstate", onPopState)
+  }, [visible, syncPageMetadata])
 
   // Debounced category suggestion
   useEffect(() => {
@@ -234,11 +342,20 @@ export default function Sidebar() {
       return
     }
 
+    const resolvedUrl = window.location.href
+    const resolvedTitle = document.title
+    const detectedCreator = detectCreatorHandle()
+    const resolvedCreator =
+      creator.trim() || (detectedCreator ? detectedCreator : null)
+
+    setUrl(resolvedUrl)
+    setPageTitle(resolvedTitle)
+
     const { error } = await supabase.from("inspirations").insert({
       user_id: user.id,
-      url,
-      page_title: pageTitle,
-      creator_handle: creator || null,
+      url: resolvedUrl,
+      page_title: resolvedTitle,
+      creator_handle: resolvedCreator,
       annotation: annotation.trim(),
       category: selectedCategory,
       ai_suggested_category: suggestedCategory,
@@ -267,6 +384,8 @@ export default function Sidebar() {
 
   return (
     <div
+      ref={panelRootRef}
+      data-lightbulb-panel=""
       style={{
         position: "fixed",
         top: 0,
@@ -282,7 +401,8 @@ export default function Sidebar() {
         borderLeft: "1px solid #1f1f1f",
         boxShadow: "-8px 0 32px rgba(0,0,0,0.6)",
         overflowY: "auto",
-        boxSizing: "border-box"
+        boxSizing: "border-box",
+        overscrollBehavior: "contain"
       }}>
       <div
         role="separator"
@@ -397,6 +517,7 @@ export default function Sidebar() {
             What inspires you about this?
           </label>
           <textarea
+            ref={annotationRef}
             value={annotation}
             onChange={(e) => setAnnotation(e.target.value)}
             placeholder="The way they used negative space to create tension..."
